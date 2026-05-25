@@ -1,0 +1,1 @@
+"""MQTT data ingestion module."""
