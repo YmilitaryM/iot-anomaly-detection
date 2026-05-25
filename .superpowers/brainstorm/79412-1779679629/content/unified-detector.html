@@ -1,0 +1,163 @@
+<h2>统一检测方案：LSTM-Autoencoder</h2>
+<p class="subtitle">一个模型同时解决时序模式 + 多维关联 + 上下文感知</p>
+
+<div class="section">
+  <h3>STL + IF 组合的本质缺陷</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:2;">
+        <p>STL 残差检测和 Isolation Forest 是<strong>各自为战</strong>的两个独立模型：</p>
+        <p>• STL 在时域上逐个传感器分解，<span style="color:#e94560;">不知道其他传感器在发生什么</span></p>
+        <p>• IF 在特征空间中看离群点，<span style="color:#e94560;">不知道数据点之间的先后顺序</span></p>
+        <p>• 两个模型的分数靠融合器人工加权拼在一起，<span style="color:#e94560;">没有内在的有机联系</span></p>
+        <p style="margin-top:12px;color:#ffd369;">根本原因：时序和空间（多传感器）是分离处理的，但真实异常往往同时涉及两者。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>LSTM-Autoencoder 如何统一解决</h3>
+  <div class="mockup">
+    <div class="mockup-header">核心原理</div>
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:24px;border-radius:8px;font-family:monospace;font-size:13px;line-height:2;">
+
+        <div style="text-align:center;padding:10px;background:#0f3460;border-radius:6px;margin-bottom:12px;">
+          <span style="color:#a0c4ff;">输入: 滑动窗口 [T-n, ..., T] × 所有传感器 → 一整个多维时序片段</span>
+        </div>
+
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+          <div style="flex:1;text-align:center;padding:16px;background:#533483;border-radius:6px;">
+            <span style="color:#ffd369;">编码器 (LSTM)</span><br>
+            <span style="font-size:11px;color:#a0c4ff;">逐步压缩时序窗口<br>→ 固定长度的隐向量<br>包含了"这段时间内所有传感器<br>的正常行为模式"</span>
+          </div>
+          <div style="color:#888;font-size:20px;">→</div>
+          <div style="flex:1;text-align:center;padding:16px;background:#533483;border-radius:6px;">
+            <span style="color:#ffd369;">解码器 (LSTM)</span><br>
+            <span style="font-size:11px;color:#a0c4ff;">从隐向量重建整个时序窗口<br>→ 尝试还原输入<br>如果输入是"正常模式"<br>重建会很准确</span>
+          </div>
+        </div>
+
+        <div style="text-align:center;padding:10px;background:#e94560;border-radius:6px;">
+          <span style="color:#fff;">anomaly_score = reconstruction_error = ||输入 - 重建||₂</span><br>
+          <span style="font-size:11px;color:#ffc0cb;">重建误差大 → 模型"没见过这种模式" → 异常</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>为什么一个模型就够了</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;text-align:left;">能力</th>
+      <th style="padding:10px;text-align:left;">STL</th>
+      <th style="padding:10px;text-align:left;">IF</th>
+      <th style="padding:10px;text-align:left;">LSTM-AE</th>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">时序模式感知</td>
+      <td style="padding:10px;color:#4ecca3;">✅</td>
+      <td style="padding:10px;color:#e94560;">❌</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 天然学习序列依赖</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">多维关联</td>
+      <td style="padding:10px;color:#e94560;">❌ 逐传感器独立</td>
+      <td style="padding:10px;color:#4ecca3;">✅</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 输入是所有传感器同时<br>学习传感器间的隐含关系</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">上下文感知</td>
+      <td style="padding:10px;color:#ffd369;">部分(季节)</td>
+      <td style="padding:10px;color:#e94560;">❌</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 窗口内自带上下文<br>无需额外工况识别</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">缓慢漂移检测</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 趋势分量</td>
+      <td style="padding:10px;color:#e94560;">❌</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 漂移导致重建误差<br>逐渐增大</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">无需标注</td>
+      <td style="padding:10px;color:#4ecca3;">✅</td>
+      <td style="padding:10px;color:#4ecca3;">✅</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 自监督训练<br>用正常数据学重建自己</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">可解释性</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 高</td>
+      <td style="padding:10px;color:#4ecca3;">✅ 中</td>
+      <td style="padding:10px;color:#ffd369;">⚠ 可逐传感器看<br>重建误差最大的那个</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>更新后的务实路线</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:20px;border-radius:8px;font-family:monospace;font-size:13px;line-height:2.2;">
+
+        <div style="background:#4ecca3;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 1 (第1-2周): 基础管线</strong><br>
+          • MQTT接入 + 数据清洗 + 时序库 + 硬边界检测<br>
+          • 基础统计规则 (变化率、死区、简单阈值)<br>
+          • 告警去重 & 通知 & 基础仪表盘<br>
+          • 在此期间<strong>积累正常数据</strong>，作为 Phase 2 的训练集
+        </div>
+
+        <div style="background:#4ecca3;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 2 (第3-4周): LSTM-Autoencoder 上线</strong><br>
+          • 用 Phase 1 积累的正常数据训练模型<br>
+          • 替代所有统计规则，<strong>单一模型</strong>输出 anomaly_score<br>
+          • 异常可定位: 哪个传感器在哪个时间步重建误差最大<br>
+          • 保留硬边界作为安全兜底
+        </div>
+
+        <div style="background:#ffd369;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 3 (第5-6周): 反馈闭环 + 模型进化</strong><br>
+          • 运维确认/拒绝 → 积累标注<br>
+          • 定期重训练 (在线增量 或 滑动窗口重训)<br>
+          • 概念漂移监控 → 触发模型更新
+        </div>
+
+        <div style="background:#e94560;padding:12px;border-radius:6px;color:#fff;">
+          <strong>Phase 4+: 按需扩展</strong><br>
+          • 如果某类场景 LSTM-AE 反复误报 → 补充规则/变点检测<br>
+          • Transformer替代LSTM (数据量足够大时)<br>
+          • 依然是<strong>插件式架构</strong>，但不预设复杂度
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>需要正视的代价</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>相比 STL+IF 的提升</h4>
+      <ul>
+        <li>架构从"两个模型+融合器"变成"一个模型"，运维复杂度降一半</li>
+        <li>天然处理时序+多维+上下文，不需要额外的上下文感知层</li>
+        <li>缓慢漂移能检测（重建误差趋势上升本身就是信号）</li>
+        <li>异常定位更直观：直接看哪个传感器在哪个时间步重建最差</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>新增的挑战</h4>
+      <ul>
+        <li>需要 Phase 1 积累正常数据（最少几千个时间窗口）才能训练</li>
+        <li>训练和推理比纯统计方法重（但远轻于 Transformer）</li>
+        <li>超参数需要调试：窗口大小、隐层维度、层数</li>
+        <li>概念漂移时需要重训练策略</li>
+        <li>比规则更难解释"为什么异常"（但可以用逐传感器重建误差来近似解释）</li>
+      </ul>
+    </div>
+  </div>
+</div>

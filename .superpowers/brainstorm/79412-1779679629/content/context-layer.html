@@ -1,0 +1,133 @@
+<h2>上下文突变检测 — 当前设计的缺口与补充</h2>
+<p class="subtitle">三种上下文异常，当前设计只覆盖了一部分</p>
+
+<div class="section">
+  <h3>上下文异常的三种类型</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;">类型</th>
+      <th style="padding:10px;">例子</th>
+      <th style="padding:10px;">当前设计覆盖？</th>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>时间上下文</strong></td>
+      <td style="padding:10px;">40°C 白天正常，夜间异常。周末 vs 工作日用电模式不同。</td>
+      <td style="padding:10px;color:#ffd369;">部分(STL季节分量可覆盖固定周期，但不能处理非固定模式的上下文)</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>工况上下文</strong></td>
+      <td style="padding:10px;">设备在启动/满载/空载/停机时正常值差异很大。60°C满载正常，空载就是故障。</td>
+      <td style="padding:10px;color:#e94560;">缺失 — 当前没有工况识别和条件归一化</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;"><strong>关联上下文</strong></td>
+      <td style="padding:10px;">温度高+电流低=异常(散热故障)。温度高+电流高=正常(负载高)。单个传感器看都正常，组合才异常。</td>
+      <td style="padding:10px;color:#ffd369;">部分(LSTM和邻近度检测器可捕捉，但不够显式)</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>解决方案：在Pipeline中增加 "上下文感知层"</h3>
+  <div class="mockup">
+    <div class="mockup-header">改进后的 Pipeline — 在 Stage 1 和 Stage 2 之间插入 Context Layer</div>
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:24px;border-radius:8px;font-family:monospace;font-size:13px;line-height:2;">
+
+        <div style="background:#0f3460;padding:12px;border-radius:6px;margin-bottom:10px;opacity:0.6;">
+          Stage 1: 预处理 & 时序分解 [不变]
+        </div>
+
+        <div style="background:#e94560;padding:14px;border-radius:6px;margin-bottom:10px;">
+          <span style="color:#fff;font-weight:bold;">🆕 Stage 1.5: 上下文感知层</span><br><br>
+
+          <span style="color:#ffd369;">1. 工况识别 (Operating Mode Detection)</span><br>
+          <span style="color:#ffc0cb;">
+            • 用 DBSCAN 对多维工况特征(RPM、负载率、功率、档位等)做在线聚类<br>
+            • 每个聚类 = 一个工况模式，实时判定当前处于哪个工况<br>
+            • 新工况自动发现 → 标记为 "未知模式" 触发人工标注<br>
+            • 输出: mode_id, mode_confidence
+          </span><br><br>
+
+          <span style="color:#ffd369;">2. 条件归一化 (Conditional Normalization)</span><br>
+          <span style="color:#ffc0cb;">
+            • 在每个工况内分别计算基线(均值/方差/分位数)<br>
+            • 传感器原始值 → mode_relative_zscore = (value - mode_mean) / mode_std<br>
+            • 将 "相对工况的偏差" 作为检测器输入，替代原始值<br>
+            • 效果: 60°C满载 → zscore≈0(正常)，60°C空载 → zscore>>3(异常)
+          </span><br><br>
+
+          <span style="color:#ffd369;">3. 上下文特征注入</span><br>
+          <span style="color:#ffc0cb;">
+            • 时间编码: hour_sin, hour_cos, day_of_week, is_holiday<br>
+            • 工况编码: mode_id → embedding vector<br>
+            • 关联快照: 同时刻其他关联传感器的残差<br>
+            • 这些特征直接拼接到 Stage 2 的特征向量中
+          </span>
+        </div>
+
+        <div style="background:#0f3460;padding:12px;border-radius:6px;margin-bottom:10px;opacity:0.6;">
+          Stage 2: 特征工程 [增强: 接收上下文特征]
+        </div>
+
+        <div style="background:#0f3460;padding:12px;border-radius:6px;opacity:0.6;">
+          Stage 3: 多策略检测 [增强: 检测器输入从 raw value 变成 mode_relative_zscore]
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>为什么这个位置是关键设计选择</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>放在 Stage 1 和 2 之间</h4>
+      <ul>
+        <li>时序分解已剥离周期，上下文层处理的是剩下的 "模式切换" 问题</li>
+        <li>条件归一化后的值直接喂给所有5个检测器，无需每个检测器自己做上下文处理</li>
+        <li>新增传感器类型只需配置哪些字段是 "工况特征"</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>挑战</h4>
+      <ul>
+        <li>DBSCAN 在线聚类需要滑动窗口 + 增量更新，不能纯批处理</li>
+        <li>工况标注需要运维配合（但可以先纯无监督聚类，逐步标注）</li>
+        <li>低频传感器可能没有足够维度做工况识别，需要降级策略</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>检测器覆盖矩阵（更新后）</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:13px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;">异常类型</th>
+      <th style="padding:10px;">统计</th>
+      <th style="padding:10px;">残差</th>
+      <th style="padding:10px;">邻近度</th>
+      <th style="padding:10px;">预测</th>
+      <th style="padding:10px;">变点</th>
+      <th style="padding:10px;">🆕上下文层</th>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">点异常(突变尖峰)</td>
+      <td style="padding:10px;color:#4ecca3;">✅主</td><td style="padding:10px;">✅</td><td style="padding:10px;">✅</td><td style="padding:10px;">—</td><td style="padding:10px;">✅</td><td style="padding:10px;">—</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">时间上下文异常</td>
+      <td style="padding:10px;">—</td><td style="padding:10px;color:#4ecca3;">✅主</td><td style="padding:10px;">—</td><td style="padding:10px;">✅</td><td style="padding:10px;">—</td><td style="padding:10px;color:#4ecca3;">✅(时间编码)</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">工况上下文异常</td>
+      <td style="padding:10px;">—</td><td style="padding:10px;">—</td><td style="padding:10px;">✅</td><td style="padding:10px;">✅</td><td style="padding:10px;">—</td><td style="padding:10px;color:#4ecca3;">✅主(条件归一化)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">关联上下文异常</td>
+      <td style="padding:10px;">—</td><td style="padding:10px;">—</td><td style="padding:10px;color:#4ecca3;">✅主</td><td style="padding:10px;">✅</td><td style="padding:10px;">—</td><td style="padding:10px;">✅(关联快照)</td>
+    </tr>
+  </table>
+</div>

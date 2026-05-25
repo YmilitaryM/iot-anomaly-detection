@@ -1,0 +1,9 @@
+{"type":"server-started","port":61995,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:61995","screen_dir":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content","state_dir":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/state"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/refined-approach.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/detection-pipeline.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/context-layer.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/dual-path.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/honest-assessment.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/unified-detector.html"}
+{"type":"screen-added","file":"/Users/ymilitarym/hp-2026/iot-anomaly-detection/.superpowers/brainstorm/79412-1779679629/content/technical-deep-dive.html"}
+{"type":"server-stopped","reason":"idle timeout"}

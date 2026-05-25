@@ -1,0 +1,159 @@
+<h2>方案 D：多策略融合 + 时序分解 + 在线学习</h2>
+<p class="subtitle">超越"规则先于ML"的阶段式思维，构建并行融合的检测引擎</p>
+
+<div class="section">
+  <h3>核心理念：为什么方案A不够好？</h3>
+  <p>方案A的问题是"规则做完再上ML"——这是<strong>串行接力</strong>。但真实场景中，简单的统计规则和复杂的ML模型应该<strong>并行协作</strong>：简单规则擅长捕捉已知故障模式，统计方法擅长发现分布漂移，ML擅长学习未知的复杂模式。三者不是替代关系，而是互补关系。</p>
+</div>
+
+<div class="section">
+  <h3>整体架构</h3>
+  <div class="mockup">
+    <div class="mockup-header">IoT 异常检测平台架构</div>
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:20px;border-radius:8px;font-size:14px;line-height:1.8;">
+        <div style="text-align:center;padding:8px;background:#16213e;border-radius:4px;margin-bottom:12px;">
+          <strong>数据接入层</strong> — MQTT Broker / Kafka — 设备注册 & 协议适配
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div style="flex:1;background:#0f3460;border-radius:4px;padding:8px;text-align:center;">
+            <strong>实时流 (Flink)</strong><br>
+            <span style="font-size:12px;color:#a0c4ff;">窗口聚合 → 特征提取 → 检测 → 告警</span>
+          </div>
+          <div style="flex:1;background:#0f3460;border-radius:4px;padding:8px;text-align:center;">
+            <strong>批量分析 (Spark)</strong><br>
+            <span style="font-size:12px;color:#a0c4ff;">模型训练 → 模式挖掘 → 报表生成</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;background:#533483;border-radius:4px;padding:12px;text-align:center;">
+          <strong>检测引擎核心</strong> — 多策略并行融合<br>
+          <div style="display:flex;gap:8px;margin-top:8px;font-size:12px;">
+            <span style="flex:1;background:#e94560;padding:6px;border-radius:4px;">统计规则检测器</span>
+            <span style="flex:1;background:#e94560;padding:6px;border-radius:4px;">时序分解检测器</span>
+            <span style="flex:1;background:#e94560;padding:6px;border-radius:4px;">邻近度检测器</span>
+            <span style="flex:1;background:#e94560;padding:6px;border-radius:4px;">预测偏差检测器</span>
+            <span style="flex:1;background:#e94560;padding:6px;border-radius:4px;">变点检测器</span>
+          </div>
+          <div style="text-align:center;margin-top:6px;font-size:12px;color:#a0c4ff;">↓ 每检测器输出异常分数 (0~1) → <strong>加权融合 & 投票裁决</strong> ↓</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;">
+          <div style="flex:1;background:#533483;border-radius:4px;padding:8px;text-align:center;">
+            <strong>反馈闭环</strong><br><span style="font-size:12px;">运维确认/拒绝 → 调整权重 → 积累标注 → 触发模型重训练</span>
+          </div>
+          <div style="flex:1;background:#533483;border-radius:4px;padding:8px;text-align:center;">
+            <strong>概念漂移监控</strong><br><span style="font-size:12px;">检测数据分布变化 → 自动衰减旧模型 → 触发增量更新</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:12px;">
+          <div style="flex:1;background:#16213e;border-radius:4px;padding:8px;text-align:center;">
+            <strong>输出层</strong><br>
+            <span style="font-size:12px;">API Gateway · Web Dashboard · 告警路由(钉钉/飞书/邮件)</span>
+          </div>
+          <div style="flex:1;background:#16213e;border-radius:4px;padding:8px;text-align:center;">
+            <strong>存储层</strong><br>
+            <span style="font-size:12px;">TimescaleDB(时序) · PostgreSQL(元数据) · Redis(实时状态)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>检测引擎详解：5种检测器并行工作</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;text-align:left;">检测器类型</th>
+      <th style="padding:10px;text-align:left;">算法</th>
+      <th style="padding:10px;text-align:left;">擅长场景</th>
+      <th style="padding:10px;text-align:left;">需要训练</th>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>统计规则</strong></td>
+      <td style="padding:10px;">3σ, IQR, MAD, 变化率阈值</td>
+      <td style="padding:10px;">已知故障模式、硬阈值场景</td>
+      <td style="padding:10px;color:#4ecca3;">不需要</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>时序分解</strong></td>
+      <td style="padding:10px;">STL → 残差检测, Spectral Residual</td>
+      <td style="padding:10px;">周期性数据的异常、季节性波动中的异常</td>
+      <td style="padding:10px;color:#4ecca3;">不需要</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>邻近度</strong></td>
+      <td style="padding:10px;">Isolation Forest, LOF, HBOS</td>
+      <td style="padding:10px;">多维关联异常、无标签数据</td>
+      <td style="padding:10px;color:#ffd369;">需要(无监督)</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;"><strong>预测偏差</strong></td>
+      <td style="padding:10px;">Lightweight LSTM/GRU, Transformer</td>
+      <td style="padding:10px;">复杂时序模式、长周期依赖</td>
+      <td style="padding:10px;color:#ffd369;">需要(自监督)</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;"><strong>变点检测</strong></td>
+      <td style="padding:10px;">PELT, Binary Segmentation</td>
+      <td style="padding:10px;">工况切换、设备状态突变</td>
+      <td style="padding:10px;color:#4ecca3;">不需要</td>
+    </tr>
+  </table>
+</div>
+
+<div class="section">
+  <h3>关键创新点对比之前方案</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>方案D 相比方案A 的提升</h4>
+      <ul>
+        <li><strong>多策略融合</strong>：而不是两阶段接力，5个检测器同时工作，加权投票</li>
+        <li><strong>时序分解前置</strong>：在检测前先剥离趋势和周期，残差中的异常更明显、误报更低</li>
+        <li><strong>无监督优先</strong>：Isolation Forest 等无需标注即可工作，解决冷启动问题</li>
+        <li><strong>反馈闭环</strong>：运维确认/拒绝告警自动调整检测器权重，越用越准</li>
+        <li><strong>概念漂移处理</strong>：传感器老化、季节变化不会让模型逐渐失效</li>
+        <li><strong>多维关联</strong>：不是孤立看每个传感器，而是发现多传感器联合异常模式</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>额外复杂度</h4>
+      <ul>
+        <li>引擎内部需要协调5种检测器的输出融合</li>
+        <li>需要元数据管理（传感器类型、检测器配置、权重）</li>
+        <li>反馈数据需要持久化和版本管理</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>技术选型建议</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;text-align:left;">层</th>
+      <th style="padding:10px;text-align:left;">推荐</th>
+      <th style="padding:10px;text-align:left;">备选</th>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">消息队列</td><td style="padding:10px;">Redpanda / Kafka</td><td style="padding:10px;">EMQX</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">实时计算</td><td style="padding:10px;">Apache Flink</td><td style="padding:10px;">RisingWave</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">批量计算</td><td style="padding:10px;">Apache Spark</td><td style="padding:10px;">Dask</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">时序数据库</td><td style="padding:10px;">TimescaleDB</td><td style="padding:10px;">TDengine / InfluxDB</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">ML框架</td><td style="padding:10px;">PyOD + scikit-learn + PyTorch</td><td style="padding:10px;">-</td>
+    </tr>
+    <tr style="border-bottom:1px solid #333;">
+      <td style="padding:10px;">Web后端</td><td style="padding:10px;">FastAPI</td><td style="padding:10px;">-</td>
+    </tr>
+    <tr>
+      <td style="padding:10px;">前端仪表盘</td><td style="padding:10px;">React + ECharts/D3</td><td style="padding:10px;">Streamlit(快速原型)</td>
+    </tr>
+  </table>
+</div>

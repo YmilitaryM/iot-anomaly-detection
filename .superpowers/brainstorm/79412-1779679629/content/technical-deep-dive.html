@@ -1,0 +1,173 @@
+<h2>技术深度分析：LSTM-AE 在 IoT 异常检测中的实际问题</h2>
+<p class="subtitle">六个必须解决的技术问题</p>
+
+<div class="section">
+  <h3>问题1: 训练数据中混入了异常怎么办？</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <p>LSTM-AE 假设训练数据全是正常的。但 Phase 1 积累的数据可能就有异常混杂。</p>
+        <p style="color:#ffd369;">解法：两轮训练</p>
+        <p>
+          <strong>Round 1</strong> — 用全部数据训练初版模型<br>
+          <strong>清洗</strong> — 用初版模型对所有训练数据打分，剔除重建误差 top 5% 的窗口<br>
+          <strong>Round 2</strong> — 用清洗后的数据重新训练<br>
+        </p>
+        <p style="color:#888;">这在文献中叫 "self-cleaning" 或 "iterative refinement"，USAD 论文中使用了类似策略。关键是 top 5% 这个比例——设太大可能保留异常，设太小可能丢失边缘正常样本。可以用 MAD-based 动态阈值替代固定比例。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题2: 异常阈值怎么定？</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <p>重建误差的绝对值没有物理意义。今天的 0.05 和明天的 0.05 可能一个正常一个异常。</p>
+        <p style="color:#ffd369;">解法：Peak-Over-Threshold (POT) 动态阈值</p>
+        <p>
+          • 不在重建误差上设固定阈值，而是拟合误差的<strong>极值分布 (GPD, Generalized Pareto Distribution)</strong><br>
+          • 每 N 个误差值更新一次 GPD 参数<br>
+          • 阈值 = GPD 的 (1-α) 分位数，α 由期望的误报率控制<br>
+          • 这是 SPOT/DSPOT 算法的核心思想，在腾讯和微软的异常检测系统中有生产验证
+        </p>
+        <p style="color:#888;">比固定阈值好在哪里：模型老化导致整体误差上升时，阈值自动跟随；传感器差异不需要手工调。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题3: 多传感器尺度差异</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <p>温度 (0-100°C)、振动 (0-50 mm/s)、电流 (0-500A) 输入同一个 LSTM。MSE 会被大尺度的传感器主导。</p>
+        <p style="color:#ffd369;">解法：RobustScaler + 逐传感器独立计算重建误差</p>
+        <p>
+          • 预处理: RobustScaler (median + IQR) 逐传感器标准化 → 所有输入在 [-1, 1] 量级<br>
+          • 损失函数: <strong>不直接用全局 MSE</strong>，改用逐传感器 MSE 的加权和<br>
+          • loss = Σ wᵢ × MSEᵢ，wᵢ 初始均等，可根据传感器重要性调整<br>
+          • 推理时: 每个传感器独立计算 reconstruction_errorᵢ，阈值也逐传感器独立用 POT 计算<br>
+          • 告警: 任一传感器超阈值 → 触发，标注是哪个传感器异常
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题4: 概念漂移 — 模型随时间退化</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <p>设备老化、季节变化、工艺调整都会让"正常"的定义变化。三个月前的模型可能天天误报。</p>
+        <p style="color:#ffd369;">解法：双阈值监控 + 滑动窗口重训</p>
+        <p>
+          <strong>漂移检测:</strong><br>
+          • 维护一个 baseline 误差分布 (训练后第一周的重建误差分布)<br>
+          • 用 KL divergence 比较近期误差分布 vs baseline<br>
+          • KL > drift_threshold → 触发重训练告警<br><br>
+          <strong>重训练策略:</strong><br>
+          • 保留最后 N 天的原始数据 (建议 N=30)<br>
+          • 漂移触发后自动用最近数据重训练<br>
+          • 重训练时用上一版模型做 self-cleaning<br>
+          • 新旧模型 A/B 对比验证后再切换<br>
+          • 重训不宜太频繁: 最少间隔 7 天
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题5: 模型架构的工程选择</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <tr style="background:#0f3460;">
+            <th style="padding:10px;text-align:left;">设计选择</th>
+            <th style="padding:10px;text-align:left;">推荐</th>
+            <th style="padding:10px;text-align:left;">理由</th>
+          </tr>
+          <tr style="border-bottom:1px solid #333;">
+            <td style="padding:10px;">架构</td>
+            <td style="padding:10px;"><strong>Bidirectional LSTM Encoder + Unidirectional LSTM Decoder</strong></td>
+            <td style="padding:10px;">双向编码器捕捉前后文，单向解码器更符合时序因果性。比纯单向重建质量好 15-20%，比 Transformer 轻 10 倍。</td>
+          </tr>
+          <tr style="border-bottom:1px solid #333;">
+            <td style="padding:10px;">隐层</td>
+            <td style="padding:10px;">2层, hidden=64~128 (视传感器数量)</td>
+            <td style="padding:10px;">太浅学不到复杂模式，太深容易过拟合。64 维对 10-20 个传感器足够，128 维对 50+ 传感器。</td>
+          </tr>
+          <tr style="border-bottom:1px solid #333;">
+            <td style="padding:10px;">窗口大小</td>
+            <td style="padding:10px;">w = max(采样频率×5, 周期性×2)</td>
+            <td style="padding:10px;">至少覆盖 5 个采样间隔。如果有明显周期(如每小时)，窗口应至少覆盖 2 个周期。典型值: 64~256 步。</td>
+          </tr>
+          <tr style="border-bottom:1px solid #333;">
+            <td style="padding:10px;">正则化</td>
+            <td style="padding:10px;">Dropout=0.2 + 梯度裁剪=1.0</td>
+            <td style="padding:10px;">防止过拟合正常模式导致对新模式过度敏感。梯度裁剪防止训练不稳定。</td>
+          </tr>
+          <tr style="border-bottom:1px solid #333;">
+            <td style="padding:10px;">推理优化</td>
+            <td style="padding:10px;">导出 ONNX → ONNX Runtime</td>
+            <td style="padding:10px;">纯 PyTorch 推理约 1-5ms/窗口，ONNX 可降到 0.3-1ms。为边缘部署预留兼容。</td>
+          </tr>
+          <tr>
+            <td style="padding:10px;">VAE变体?</td>
+            <td style="padding:10px;">先用 AE，预留 VAE 升级空间</td>
+            <td style="padding:10px;">VAE的重建概率比AE的重建误差理论上更好，但训练不稳定。先用 AE 快速验证，需要时升级。</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>问题6: 冷启动 — Phase 1 到 Phase 2 的衔接数据够吗？</h3>
+  <div class="mockup">
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:16px;border-radius:8px;font-size:13px;line-height:1.8;">
+        <p>
+          <strong>最小训练数据量估算:</strong><br>
+          • 窗口大小 128 步，步长 32 步 (75% 重叠) → 1000 个原始数据点产生 ~28 个训练窗口<br>
+          • 每设备每传感器至少需要 2000+ 个训练窗口 (经验值) → 约 65,000 个原始数据点<br>
+          • 如果采样频率 1Hz (每秒一个点) → <strong>约 18 小时数据</strong><br>
+          • 如果采样频率 0.1Hz (每 10 秒) → <strong>约 7.5 天数据</strong><br><br>
+          <strong>实际操作:</strong><br>
+          • Phase 1 运行期间同步积累数据到训练缓冲池<br>
+          • 数据量达标后自动触发 Phase 2 训练<br>
+          • 低采样频率场景：Phase 1 的统计规则可以运行更长时间 (2-3周) 等数据就绪<br>
+          • 高采样频率场景：1-2 天即可启动 Phase 2<br>
+          • Phase 2 上线后，Phase 1 的硬边界始终不退役，作为安全网
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>整体技术栈确认</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <tr style="background:#1a1a2e;color:#eee;">
+      <th style="padding:10px;">层</th>
+      <th style="padding:10px;">组件</th>
+      <th style="padding:10px;">选择</th>
+    </tr>
+    <tr><td style="padding:8px;">消息接入</td><td style="padding:8px;">MQTT Broker</td><td style="padding:8px;">EMQX (开源, 支持百万级连接)</td></tr>
+    <tr><td style="padding:8px;">流处理</td><td style="padding:8px;">实时特征+推理</td><td style="padding:8px;">Bytewax (Python原生, 比Flink轻, 够用)</td></tr>
+    <tr><td style="padding:8px;">模型训练</td><td style="padding:8px;">离线训练+重训</td><td style="padding:8px;">PyTorch + PyTorch Lightning</td></tr>
+    <tr><td style="padding:8px;">模型推理</td><td style="padding:8px;">实时推理引擎</td><td style="padding:8px;">ONNX Runtime</td></tr>
+    <tr><td style="padding:8px;">时序存储</td><td style="padding:8px;">原始数据+特征</td><td style="padding:8px;">TimescaleDB</td></tr>
+    <tr><td style="padding:8px;">元数据+告警</td><td style="padding:8px;">关系数据</td><td style="padding:8px;">PostgreSQL</td></tr>
+    <tr><td style="padding:8px;">实时状态</td><td style="padding:8px;">窗口缓存+去重</td><td style="padding:8px;">Redis</td></tr>
+    <tr><td style="padding:8px;">Web后端</td><td style="padding:8px;">API+告警路由</td><td style="padding:8px;">FastAPI</td></tr>
+    <tr><td style="padding:8px;">前端</td><td style="padding:8px;">仪表盘</td><td style="padding:8px;">React + ECharts</td></tr>
+    <tr><td style="padding:8px;">容器化</td><td style="padding:8px;">部署</td><td style="padding:8px;">Docker Compose (开发) / K8s (生产)</td></tr>
+  </table>
+</div>

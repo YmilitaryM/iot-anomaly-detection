@@ -1,0 +1,126 @@
+<h2>诚实审视：当前方案的问题</h2>
+<p class="subtitle">不是否定方向，而是直面工程现实</p>
+
+<div class="section">
+  <h3>五个真实问题</h3>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-body">
+        <h3>❌ 问题1: 复杂度爆炸</h3>
+        <p>5个检测器 × 2条路径 = <strong>10个分数</strong>每次计算。每个检测器有自己的参数、阈值、调优策略。一台上线后出了误报，你很难快速定位是哪个检测器哪条路径的问题。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>❌ 问题2: max融合太粗暴</h3>
+        <p>Path A (全局) 和 Path B (上下文) 取 max，本质上是<strong>偏向噪声更大的那一路</strong>。如果 Path A 因为忽略上下文频繁误报，或者 Path B 因为过度归一化频繁漏报，max 策略不会修正，只会沉默地继承两路的缺陷。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>❌ 问题3: DBSCAN在线聚类在实践中很脆弱</h3>
+        <p>真实设备的工况很少是干净的球形聚类——模式重叠、缓慢漂移、过渡态模糊。DBSCAN的eps和min_samples参数对结果极度敏感，且需要针对每种设备单独调参。<strong>这是一个研究级组件，不是生产级组件。</strong></p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>❌ 问题4: 没有解决"先有数据还是先有模型"的鸡生蛋</h3>
+        <p>工况识别需要历史数据来训练聚类，预测模型需要历史数据来训练，但系统上线时什么都没有。方案里提到的"无监督可以冷启动"，实际上Isolation Forest也需要一个最小数据量（几百到几千个点）才能建立有效的树结构。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>❌ 问题5: 运维成本被低估</h3>
+        <p>谁来做检测器的参数调优？告警风暴时怎么快速降噪？新增一种传感器类型要走什么配置流程？这些问题不解决，系统上线三个月后就会变成"告警太多所以大家都忽略了"的状态。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>根因分析：我们犯了"预设计"的错误</h3>
+  <div class="mockup">
+    <div class="mockup-header">两种设计哲学</div>
+    <div class="mockup-body">
+      <div style="display:flex;gap:16px;">
+        <div style="flex:1;background:#533483;color:#eee;padding:16px;border-radius:8px;border:2px solid #e94560;">
+          <div style="font-weight:bold;color:#e94560;margin-bottom:8px;">❌ 我在做的事</div>
+          <div style="font-size:13px;line-height:1.8;">
+            预先设计一个"完整"架构<br>
+            → 5个检测器，2条路径<br>
+            → 上下文感知层 + 融合器<br>
+            → 假设所有复杂度都需要<br>
+            → 提前为所有场景做准备
+          </div>
+        </div>
+        <div style="flex:1;background:#0f3460;color:#eee;padding:16px;border-radius:8px;border:2px solid #4ecca3;">
+          <div style="font-weight:bold;color:#4ecca3;margin-bottom:8px;">✅ 应该做的事</div>
+          <div style="font-size:13px;line-height:1.8;">
+            从最小可用系统开始<br>
+            → 上线 → 观察什么场景误报/漏报<br>
+            → 针对性地加一个检测器<br>
+            → 再观察 → 再加<br>
+            → 复杂度由数据驱动，不由架构驱动
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="section">
+  <h3>务实方案：渐进式架构</h3>
+  <div class="mockup">
+    <div class="mockup-header">每个阶段只加一件事，上线验证后再加下一件</div>
+    <div class="mockup-body">
+      <div style="background:#1a1a2e;color:#eee;padding:20px;border-radius:8px;font-family:monospace;font-size:13px;line-height:2.2;">
+
+        <div style="background:#4ecca3;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 1: 基础管线 (第1-2周)</strong><br>
+          • MQTT接入 + 数据清洗 + 时序数据库存储<br>
+          • 硬边界检测 (物理/安全阈值)<br>
+          • 统计规则: 变化率、死区、3σ (基于滑动窗口)<br>
+          • 告警去重 & 分级 & 通知通道<br>
+          • ✅ 产出: 能跑、能告警、有基础仪表盘
+        </div>
+
+        <div style="background:#ffd369;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 2: 时序分析 (第3-4周)</strong><br>
+          • STL 时序分解 → 残差检测<br>
+          • 自适应阈值 (指数平滑动态调整)<br>
+          • 运维反馈闭环 (确认/拒绝告警 → 调整阈值)<br>
+          • ✅ 产出: 季节性误报大幅降低，阈值不再一刀切
+        </div>
+
+        <div style="background:#ff8c42;padding:12px;border-radius:6px;margin-bottom:10px;color:#000;">
+          <strong>Phase 3: 多维检测 (第5-6周)</strong><br>
+          • Isolation Forest 上线 (积累足够数据后)<br>
+          • 跨传感器关联异常发现<br>
+          • 反馈数据作为标注 → 模型权重调整<br>
+          • ✅ 产出: 能发现单传感器发现不了的关联异常
+        </div>
+
+        <div style="background:#e94560;padding:12px;border-radius:6px;color:#fff;">
+          <strong>Phase 4+: 按需扩展 (根据线上数据决定)</strong><br>
+          • 如果某类设备工况变化频繁且导致大量误报 → 加工况识别<br>
+          • 如果某类传感器周期规律复杂 → 加预测模型(LSTM)<br>
+          • 如果出现缓慢漂移型故障 → 加变点检测<br>
+          • 每个扩展都<strong>有数据支撑</strong>，不为假设买单
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键洞察</h3>
+  <div style="background:#1a1a2e;color:#eee;padding:20px;border-radius:8px;font-size:14px;line-height:2;">
+    <p>一个好的异常检测系统，<strong>核心能力不是有多少种检测算法</strong>，而是:</p>
+    <p>1. <strong>告警质量 > 检测覆盖度</strong> — 宁可漏报10条也不误报100条，因为误报会摧毁运维人员的信任</p>
+    <p>2. <strong>反馈闭环 > 算法复杂度</strong> — 一个简单的3σ + 运维反馈，比十个无人反馈的复杂模型有用得多</p>
+    <p>3. <strong>可调试性 > 理论最优</strong> — 出问题时运维人员能快速判断"为什么告警了"，比准确率提升2%更重要</p>
+    <p>4. <strong>架构预留扩展点，但先不上线</strong> — 代码层面做好检测器插件化，但 v1 只启用两个</p>
+  </div>
+</div>

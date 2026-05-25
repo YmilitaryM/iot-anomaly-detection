@@ -3,7 +3,6 @@ import numpy as np
 from collections.abc import Sequence
 import onnxruntime as ort
 from src.detection.base import Detector
-from src.preprocessing.scaler import RobustScaler
 from src.threshold.pot import POTThreshold
 from src.models.sensor import SensorData
 from src.models.anomaly import AnomalyEvent, Severity, DetectionSource
@@ -19,9 +18,7 @@ class LSTMAEDetector(Detector):
         self.window_size = window_size
         self.n_sensors = n_sensors
         self.sensor_names = sensor_names or []
-        self.scaler = RobustScaler()
         self.thresholds: dict[str, POTThreshold] = {}
-        self._buffer: list[dict] = []
 
     def configure(self, **kwargs) -> None:
         if "alpha" in kwargs:

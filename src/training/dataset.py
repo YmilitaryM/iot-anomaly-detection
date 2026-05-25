@@ -10,7 +10,11 @@ class SlidingWindowDataset(Dataset):
         self.data = torch.FloatTensor(data)
         self.window_size = window_size
         self.stride = stride
-        n_windows = max(0, (len(data) - window_size) // stride + 1)
+        n_windows = (len(data) - window_size) // stride + 1
+        if n_windows <= 0:
+            raise ValueError(
+                f"Data length ({len(data)}) must be >= window_size ({window_size})"
+            )
         self._indices = [i * stride for i in range(n_windows)]
 
     def __len__(self) -> int:

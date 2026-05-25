@@ -21,6 +21,7 @@ def train_model(data: np.ndarray, n_sensors: int, hidden_dim: int = 64,
     criterion = nn.MSELoss()
 
     best_loss = float("inf")
+    best_state = None
     patience_counter = 0
 
     for epoch in range(epochs):
@@ -42,10 +43,13 @@ def train_model(data: np.ndarray, n_sensors: int, hidden_dim: int = 64,
         if avg_loss < best_loss * 0.999:
             best_loss = avg_loss
             patience_counter = 0
+            best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
         else:
             patience_counter += 1
             if patience_counter >= patience:
                 logger.info("early stopping at epoch %d", epoch + 1)
                 break
 
+    if best_state is not None:
+        model.load_state_dict(best_state)
     return model
