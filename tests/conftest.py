@@ -1,6 +1,7 @@
 import pytest
 from datetime import datetime, timedelta
 from src.models.sensor import SensorData, SensorType
+import random
 
 
 def make_sensor_data(
@@ -28,12 +29,11 @@ def make_history(
     device_id: str = "dev-001",
     sensor_id: str = "temp-01",
 ) -> list[SensorData]:
-    import random
-    random.seed(42)
+    rng = random.Random(42)
     t = start_time or datetime.now() - timedelta(seconds=count * interval_seconds)
     history = []
     for i in range(count):
-        val = base_value + random.gauss(0, noise) if noise > 0 else base_value
+        val = base_value + rng.gauss(0, noise) if noise > 0 else base_value
         history.append(SensorData(
             device_id=device_id,
             sensor_id=sensor_id,
