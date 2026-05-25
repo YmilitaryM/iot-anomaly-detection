@@ -46,6 +46,9 @@ async def ws_alerts(websocket: WebSocket):
 
 @app.post("/api/ingest")
 async def ingest(data: SensorData):
+    from src.api.routes.devices import register_device
+    register_device(data.device_id, data.sensor_type.value)
+
     engine = get_engine()
     events: list[AnomalyEvent] = await engine.run(data)
 

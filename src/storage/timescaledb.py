@@ -11,8 +11,15 @@ TimescaleSession = async_sessionmaker(timescale_engine, expire_on_commit=False)
 
 
 async def init_timescaledb() -> None:
+    # Each potentially-failing step in its own transaction so
+    # failures don't contaminate subsequent steps.
+    try:
+        async with timescale_engine.begin() as conn:
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
+    except Exception:
+        logger.warning("TimescaleDB extension not available, using regular table")
+
     async with timescale_engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS timescaledb"))
         await conn.execute(text("""
             CREATE TABLE IF NOT EXISTS sensor_data (
                 time TIMESTAMPTZ NOT NULL,
@@ -23,9 +30,16 @@ async def init_timescaledb() -> None:
                 unit TEXT
             )
         """))
-        await conn.execute(text("""
-            SELECT create_hypertable('sensor_data', 'time', if_not_exists => TRUE);
-        """))
+
+    try:
+        async with timescale_engine.begin() as conn:
+            await conn.execute(text("""
+                SELECT create_hypertable('sensor_data', 'time', if_not_exists => TRUE);
+            """))
+    except Exception:
+        logger.info("hypertable creation skipped (TimescaleDB not available)")
+
+    async with timescale_engine.begin() as conn:
         await conn.execute(text("""
             CREATE INDEX IF NOT EXISTS idx_sensor_data_device_sensor
             ON sensor_data (device_id, sensor_id, time DESC);
