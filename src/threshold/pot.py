@@ -16,7 +16,6 @@ class POTThreshold:
         self._buffer: deque[float] = deque(maxlen=window)
         self._threshold: float = float("inf")
         self._params: tuple[float, float] | None = None
-        self._n_below_init: int = 0
 
     @property
     def threshold(self) -> float:
@@ -55,10 +54,10 @@ class POTThreshold:
         if excess_var < 1e-9 or excess_mean < 1e-9:
             self._threshold = data[int(n * (1 - self.alpha))]
             return
-        shape = 0.5 * ((excess_mean ** 2 / excess_var) - 1)
+        shape = 0.5 * (1 - (excess_mean ** 2 / excess_var))
         scale = 0.5 * excess_mean * ((excess_mean ** 2 / excess_var) + 1)
 
-        # z_q = t + (scale/shape) * (( (n/Nt * alpha)^(-shape) ) - 1)
+        # GPD quantile: z_q = t + (scale/xi) * (( (n/Nt * alpha)^(-xi) ) - 1)
         Nt = len(excesses)
         try:
             z_q = t + (scale / shape) * (((n / Nt) * self.alpha) ** (-shape) - 1)
