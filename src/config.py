@@ -1,6 +1,8 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 
 class Settings(BaseSettings):
     model_config = {"env_prefix": "IOT_", "env_nested_delimiter": "__"}
@@ -28,7 +30,7 @@ class Settings(BaseSettings):
     statistical_sigma: float = 3.0
 
     # Model
-    model_dir: Path = Path("models")
+    model_dir: Path = PROJECT_ROOT / "models"
     model_window_size: int = 128
     model_hidden_dim: int = 64
     training_min_samples: int = 65_000
