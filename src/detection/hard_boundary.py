@@ -17,8 +17,10 @@ class HardBoundaryDetector(Detector):
         if hard_min is not None and hard_max is not None:
             self._bounds[sensor_id] = (hard_min, hard_max)
             logger.info("configured %s: [%s, %s]", sensor_id, hard_min, hard_max)
-        elif sensor_id in self._bounds:
-            del self._bounds[sensor_id]
+        elif hard_min is None and hard_max is None:
+            if sensor_id in self._bounds:
+                del self._bounds[sensor_id]
+                logger.info("cleared config for %s", sensor_id)
 
     async def detect(self, data: SensorData,
                      history: Sequence[SensorData]) -> AnomalyEvent | None:

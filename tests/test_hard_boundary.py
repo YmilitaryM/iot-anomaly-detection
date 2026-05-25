@@ -59,3 +59,12 @@ class TestHardBoundaryDetector:
                             timestamp=datetime.now())
         assert await detector.detect(at_min, []) is None
         assert await detector.detect(at_max, []) is None
+
+    async def test_partial_config_does_not_clear_existing(self, detector, config):
+        detector.configure("s1", **config)
+        detector.configure("s1", hard_min=0)  # only one bound
+        data = SensorData(device_id="d1", sensor_id="s1",
+                          sensor_type=SensorType.TEMPERATURE, value=150.0,
+                          timestamp=datetime.now())
+        result = await detector.detect(data, [])
+        assert result is not None  # bounds should still be active
