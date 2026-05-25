@@ -38,18 +38,13 @@ class TestStatisticalDetector:
         result = await detector.detect(data, history)
         assert result is None
 
-    async def test_rate_of_change_detection(self, detector):
+    async def test_rate_of_change_detection(self):
+        detector = StatisticalDetector(window_size=50, sigma=999.0, max_rate_of_change=10.0)
+        history = make_history(base_value=25.0, count=100, noise=0.1, sensor_id="t1")
         now = datetime.now()
-        history = make_history(base_value=25.0, count=50, noise=0.1, sensor_id="t1",
-                               start_time=now - timedelta(seconds=55))
-        history.extend([
-            SensorData(device_id="d1", sensor_id="t1",
+        history.append(SensorData(device_id="d1", sensor_id="t1",
                        sensor_type=SensorType.TEMPERATURE, value=25.0,
-                       timestamp=now - timedelta(seconds=2)),
-            SensorData(device_id="d1", sensor_id="t1",
-                       sensor_type=SensorType.TEMPERATURE, value=25.1,
-                       timestamp=now - timedelta(seconds=1)),
-        ])
+                       timestamp=now - timedelta(seconds=1)))
         data = SensorData(device_id="d1", sensor_id="t1",
                           sensor_type=SensorType.TEMPERATURE, value=80.0,
                           timestamp=now)
@@ -58,8 +53,9 @@ class TestStatisticalDetector:
 
     async def test_edge_case_near_boundary(self, detector):
         history = make_history(base_value=25.0, count=100, noise=0.5, sensor_id="t1")
-        mean = sum(h.value for h in history) / len(history)
-        std = math.sqrt(sum((h.value - mean)**2 for h in history) / len(history))
+        window = history[-detector.window_size:]
+        mean = sum(h.value for h in window) / len(window)
+        std = math.sqrt(sum((h.value - mean)**2 for h in window) / len(window))
         near_3sigma = mean + 2.9 * std
         data = SensorData(device_id="d1", sensor_id="t1",
                           sensor_type=SensorType.TEMPERATURE, value=near_3sigma,
