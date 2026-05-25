@@ -17,7 +17,7 @@ class TestDetectionEngine:
         return DetectionEngine(detectors=[hb, st])
 
     async def test_normal_data_no_alerts(self, engine):
-        history = make_history(base_value=25.0, count=100, noise=0.3)
+        history = make_history(base_value=25.0, count=100, noise=0.3, sensor_id="t1")
         data = SensorData(device_id="d1", sensor_id="t1",
                           sensor_type=SensorType.TEMPERATURE, value=25.5,
                           timestamp=datetime.now())
@@ -33,12 +33,12 @@ class TestDetectionEngine:
         assert results[0].severity == Severity.CRITICAL
 
     async def test_multiple_detectors_can_trigger(self, engine):
-        history = make_history(base_value=25.0, count=100, noise=0.3)
+        history = make_history(base_value=25.0, count=100, noise=0.3, sensor_id="t1")
         data = SensorData(device_id="d1", sensor_id="t1",
                           sensor_type=SensorType.TEMPERATURE, value=200.0,
                           timestamp=datetime.now())
         results = await engine.run(data, history)
-        assert len(results) >= 1
+        assert len(results) == 2
 
     async def test_no_detectors_configured(self):
         engine = DetectionEngine(detectors=[])

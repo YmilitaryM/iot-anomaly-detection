@@ -28,10 +28,6 @@ class DetectionEngine:
         key = f"{data.device_id}:{data.sensor_id}"
         if history:
             self._history[key].extend(history)
-        self._history[key].append(data)
-
-        if len(self._history[key]) > self._max_history:
-            self._history[key] = self._history[key][-self._max_history:]
 
         full_history = self._history[key]
         events: list[AnomalyEvent] = []
@@ -44,6 +40,10 @@ class DetectionEngine:
             except Exception:
                 logger.exception("detector %s failed for %s/%s",
                                  detector.name, data.device_id, data.sensor_id)
+
+        self._history[key].append(data)
+        if len(self._history[key]) > self._max_history:
+            self._history[key] = self._history[key][-self._max_history:]
 
         return events
 
