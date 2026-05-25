@@ -5,26 +5,27 @@ import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { useChartData } from '../hooks/useChartData'
 
-
-// Mock sensor list for display
-const MOCK_SENSORS = [
-  { id: 'temp-01', type: 'temperature', value: 42.3, unit: '°C', color: '#f97316' },
-  { id: 'vib-01', type: 'vibration', value: 0.8, unit: 'mm/s', color: '#e11d48' },
-  { id: 'cur-01', type: 'current', value: 12.4, unit: 'A', color: '#facc15' },
-  { id: 'hum-01', type: 'humidity', value: 72, unit: '%', color: '#22d3ee' },
+// Sensor list — values will be derived from chart data when available
+const DEVICE_SENSORS = [
+  { id: 'temp-01', type: 'temperature', unit: '°C', color: '#f97316' },
+  { id: 'vib-01', type: 'vibration', unit: 'mm/s', color: '#e11d48' },
+  { id: 'cur-01', type: 'current', unit: 'A', color: '#facc15' },
+  { id: 'hum-01', type: 'humidity', unit: '%', color: '#22d3ee' },
 ]
 
 export default function DeviceDetail() {
   const { deviceId } = useParams<{ deviceId: string }>()
   const navigate = useNavigate()
-  const { data: chartData } = useChartData(deviceId || '', MOCK_SENSORS[0].id)
+  const { data: chartData } = useChartData(deviceId || '', DEVICE_SENSORS[0].id)
+
+  const latestValue = chartData.length > 0 ? chartData[chartData.length - 1].value : null
 
   const allSeriesData = useMemo(() => {
-    return MOCK_SENSORS.map(s => ({
-      name: s.id,
-      color: s.color,
+    return [{
+      name: DEVICE_SENSORS[0].id,
+      color: DEVICE_SENSORS[0].color,
       data: chartData.map(d => [d.timestamp, d.value] as [string, number]),
-    }))
+    }]
   }, [chartData])
 
   if (!deviceId) return <EmptyState message="No device specified" />
@@ -44,19 +45,22 @@ export default function DeviceDetail() {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        {MOCK_SENSORS.map(s => (
+        {DEVICE_SENSORS.map((s, i) => (
           <div key={s.id} className="sensor-mini-card" style={{ borderTopColor: s.color }}>
             <div className="sensor-mini-card-header">
               <span className="sensor-mini-card-name">{s.id}</span>
               <span className="sensor-mini-card-type">{s.type}</span>
             </div>
-            <div className="sensor-mini-card-value">{s.value}{s.unit}</div>
+            <div className="sensor-mini-card-value">
+              {i === 0 && latestValue !== null ? `${latestValue.toFixed(1)}${s.unit}` : `--${s.unit}`}
+            </div>
+            {i > 0 && <div style={{ fontSize: 8, color: '#475569' }}>API endpoint needed</div>}
           </div>
         ))}
       </div>
 
       <div style={{ marginBottom: 12 }}>
-        <TimeSeriesChart series={allSeriesData} height={240} title="Sensor Data — All Sensors" />
+        <TimeSeriesChart series={allSeriesData} height={240} title={`Sensor Data — ${DEVICE_SENSORS[0].id}`} />
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>

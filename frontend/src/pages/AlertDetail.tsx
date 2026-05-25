@@ -20,8 +20,14 @@ export default function AlertDetail({ alerts }: AlertDetailProps) {
     return <EmptyState icon="🔍" message="Alert not found" />
   }
 
-  const evidence = alert.evidence as Record<string, number | boolean>
+  const evidence = (alert.evidence || {}) as Record<string, unknown>
   const evidenceKeys = Object.keys(evidence).filter(k => k !== 'roc_violation')
+
+  const formatEvidence = (v: unknown) => {
+    if (typeof v === 'number') return v.toFixed(4)
+    if (typeof v === 'boolean') return v ? 'true' : 'false'
+    return String(v)
+  }
 
   const handleFeedback = async (confirmed: boolean) => {
     try {
@@ -77,7 +83,7 @@ export default function AlertDetail({ alerts }: AlertDetailProps) {
                   <div key={k}>
                     <div className="evidence-item-label">{k}</div>
                     <div className="evidence-item-value">
-                      {typeof evidence[k] === 'number' ? Number(evidence[k]).toFixed(4) : String(evidence[k])}
+                      {formatEvidence(evidence[k])}
                     </div>
                   </div>
                 ))}

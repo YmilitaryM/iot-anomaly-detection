@@ -44,9 +44,9 @@ export default function TimeSeriesChart({
       splitLine: { lineStyle: { color: '#1e293b' } },
     },
     series: [
-      ...(anomalyWindows?.map((w, i) => ({
+      ...(anomalyWindows?.map((w) => ({
         type: 'line' as const,
-        name: `anomaly-${i}`,
+        name: `anomaly-win-${w.start}`,
         data: [] as [string, number][],
         markArea: {
           silent: true,
@@ -75,7 +75,7 @@ export default function TimeSeriesChart({
             itemStyle: { color: '#ef4444', borderColor: '#0f172a', borderWidth: 2 },
           }]
         : []),
-    ] as any,
+    ] as EChartsOption['series'],
   }
 
   return (

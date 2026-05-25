@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import DataTable from '../components/DataTable'
+import DataTable, { type Column } from '../components/DataTable'
 import FilterTabs from '../components/FilterTabs'
 import SeverityDot from '../components/SeverityDot'
 import StatusBadge from '../components/StatusBadge'
@@ -22,30 +22,30 @@ export default function AlertsPage({ alerts }: AlertsPageProps) {
     return true
   })
 
-  const columns = [
-    { key: 'severity', label: '', flex: 0.3, render: (r: Record<string, unknown>) => (
-      <SeverityDot severity={String(r.severity) as 'critical' | 'warning' | 'info'} />
+  const columns: Column<AlertEvent>[] = [
+    { key: 'severity', label: '', flex: 0.3, render: (a) => (
+      <SeverityDot severity={a.severity as 'critical' | 'warning' | 'info'} />
     )},
-    { key: 'device_id', label: 'Device', flex: 1.2, render: (r: Record<string, unknown>) => (
-      <span style={{ fontWeight: 500 }}>{String(r.device_id)}</span>
+    { key: 'device_id', label: 'Device', flex: 1.2, render: (a) => (
+      <span style={{ fontWeight: 500 }}>{a.device_id}</span>
     )},
-    { key: 'sensor_id', label: 'Sensor', flex: 1, render: (r: Record<string, unknown>) => (
-      <span style={{ color: '#94a3b8' }}>{String(r.sensor_id)}</span>
+    { key: 'sensor_id', label: 'Sensor', flex: 1, render: (a) => (
+      <span style={{ color: '#94a3b8' }}>{a.sensor_id}</span>
     )},
-    { key: 'detection_source', label: 'Source', flex: 0.8, render: (r: Record<string, unknown>) => (
-      <span style={{ color: '#94a3b8' }}>{String(r.detection_source)}</span>
+    { key: 'detection_source', label: 'Source', flex: 0.8, render: (a) => (
+      <span style={{ color: '#94a3b8' }}>{a.detection_source}</span>
     )},
-    { key: 'anomaly_score', label: 'Score', flex: 0.8, render: (r: Record<string, unknown>) => (
-      <span style={{ fontFamily: 'monospace', color: Number(r.anomaly_score) > 0.8 ? '#fca5a5' : '#94a3b8' }}>
-        {Number(r.anomaly_score).toFixed(2)}
+    { key: 'anomaly_score', label: 'Score', flex: 0.8, render: (a) => (
+      <span style={{ fontFamily: 'monospace', color: a.anomaly_score > 0.8 ? '#fca5a5' : '#94a3b8' }}>
+        {a.anomaly_score.toFixed(2)}
       </span>
     )},
-    { key: 'timestamp', label: 'Time', flex: 1, render: (r: Record<string, unknown>) => {
-      const ts = new Date(String(r.timestamp))
+    { key: 'timestamp', label: 'Time', flex: 1, render: (a) => {
+      const ts = new Date(a.timestamp)
       return <span style={{ color: '#64748b' }}>{ts.toLocaleTimeString()}</span>
     }},
-    { key: 'status', label: 'Status', flex: 0.6, render: (r: Record<string, unknown>) => (
-      <StatusBadge variant={String(r.status) === 'confirmed' ? 'healthy' : String(r.status) === 'rejected' ? 'info' : 'warning'} label={String(r.status)} />
+    { key: 'status', label: 'Status', flex: 0.6, render: (a) => (
+      <StatusBadge variant={a.status === 'confirmed' ? 'healthy' : a.status === 'rejected' ? 'info' : 'warning'} label={a.status} />
     )},
     { key: 'arrow', label: '', flex: 0.3, render: () => <span style={{ color: '#64748b' }}>→</span> },
   ]
@@ -80,9 +80,9 @@ export default function AlertsPage({ alerts }: AlertsPageProps) {
       ) : (
         <DataTable
           columns={columns}
-          rows={filtered.map(a => ({ ...a } as unknown as Record<string, unknown>))}
+          rows={filtered}
           onRowClick={row => navigate(`/alerts/${row.event_id}`)}
-          rowKey={r => String(r.event_id)}
+          rowKey={r => r.event_id}
         />
       )}
     </div>

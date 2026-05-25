@@ -23,12 +23,14 @@ function App() {
   const wsConnected = useWebSocket(onAlert)
 
   useEffect(() => {
-    fetchAlerts().then(r => setAlerts(r.items))
-    fetchDevices().then(r => setDevices(r.items))
+    fetchAlerts().then(r => setAlerts(r.items)).catch(err => console.error('Failed to fetch alerts:', err))
+    fetchDevices().then(r => setDevices(r.items)).catch(err => console.error('Failed to fetch devices:', err))
   }, [])
 
   useEffect(() => {
-    const i = setInterval(() => fetchDevices().then(r => setDevices(r.items)), 5000)
+    const i = setInterval(() => {
+      fetchDevices().then(r => setDevices(r.items)).catch(err => console.error('Failed to fetch devices:', err))
+    }, 5000)
     return () => clearInterval(i)
   }, [])
 

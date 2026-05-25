@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import DataTable from '../components/DataTable'
+import DataTable, { type Column } from '../components/DataTable'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { fetchDevices, type Device } from '../api'
@@ -13,7 +13,7 @@ export default function DevicesPage() {
   const navigate = useNavigate()
 
   const loadDevices = () => {
-    fetchDevices().then(r => setDevices(r.items))
+    fetchDevices().then(r => setDevices(r.items)).catch(err => console.error('Failed to fetch devices:', err))
   }
 
   useEffect(() => { loadDevices() }, [])
@@ -24,18 +24,18 @@ export default function DevicesPage() {
     return true
   })
 
-  const columns = [
-    { key: 'device_id', label: 'Device', flex: 2, render: (r: Record<string, unknown>) => (
-      <span style={{ fontWeight: 500 }}>{String(r.device_id)}</span>
+  const columns: Column<Device>[] = [
+    { key: 'device_id', label: 'Device', flex: 2, render: (d) => (
+      <span style={{ fontWeight: 500 }}>{d.device_id}</span>
     )},
     { key: 'device_type', label: 'Type', flex: 1 },
     { key: 'sensors', label: 'Sensors', flex: 0.8, render: () => <span style={{ color: '#94a3b8' }}>4</span> },
-    { key: 'status', label: 'Status', flex: 1, render: (r: Record<string, unknown>) => {
-      const status = String(r.training_status || 'active')
+    { key: 'status', label: 'Status', flex: 1, render: (d) => {
+      const status = d.training_status || 'active'
       return <StatusBadge variant={status === 'active' ? 'healthy' : 'warning'} label={status} />
     }},
-    { key: 'training_status', label: 'Training', flex: 1, render: (r: Record<string, unknown>) => (
-      <span style={{ color: '#94a3b8' }}>{String(r.training_status || 'active')}</span>
+    { key: 'training_status', label: 'Training', flex: 1, render: (d) => (
+      <span style={{ color: '#94a3b8' }}>{d.training_status || 'active'}</span>
     )},
     { key: 'arrow', label: '', flex: 0.3, render: () => <span style={{ color: '#64748b' }}>→</span> },
   ]
@@ -58,9 +58,9 @@ export default function DevicesPage() {
       ) : (
         <DataTable
           columns={columns}
-          rows={filtered.map(d => ({ ...d } as unknown as Record<string, unknown>))}
-          onRowClick={row => navigate(`/devices/${row.device_id}`)}
-          rowKey={r => String(r.device_id)}
+          rows={filtered}
+          onRowClick={d => navigate(`/devices/${d.device_id}`)}
+          rowKey={d => d.device_id}
         />
       )}
     </div>

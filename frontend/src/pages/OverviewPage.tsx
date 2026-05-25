@@ -21,9 +21,13 @@ export default function OverviewPage({ alerts, devices }: OverviewPageProps) {
   const defaultSensor = 'temp-01'
   const { data: chartData } = useChartData(defaultDevice, defaultSensor, lookbackMs)
 
-  const criticalCount = alerts.filter(a => a.severity === 'critical').length
-  const warningCount = alerts.filter(a => a.severity === 'warning').length
-  const healthyCount = devices.length - criticalCount - warningCount
+  const criticalDevices = new Set(alerts.filter(a => a.severity === 'critical').map(a => a.device_id)).size
+  const warningDevices = new Set(alerts.filter(a => a.severity === 'warning').map(a => a.device_id)).size
+  const healthyCount = Math.max(0, devices.length - criticalDevices - warningDevices)
+
+  const donutTotal = Math.max(devices.length, 1)
+  const donutHealthyDeg = Math.max(0, (healthyCount / donutTotal) * 360)
+  const donutWarningDeg = Math.max(0, (Math.min(warningDevices, devices.length - criticalDevices) / donutTotal) * 360)
 
   const seriesData = useMemo(() => {
     return [{
@@ -56,9 +60,9 @@ export default function OverviewPage({ alerts, devices }: OverviewPageProps) {
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <StatCard label="Critical" value={criticalCount} accentColor="#ef4444" sparklineData={sparklineMock} />
-        <StatCard label="Warning" value={warningCount} accentColor="#f97316" sparklineData={sparklineMock} />
-        <StatCard label="Healthy" value={Math.max(0, healthyCount)} accentColor="#22c55e" />
+        <StatCard label="Critical" value={criticalDevices} accentColor="#ef4444" sparklineData={sparklineMock} />
+        <StatCard label="Warning" value={warningDevices} accentColor="#f97316" sparklineData={sparklineMock} />
+        <StatCard label="Healthy" value={healthyCount} accentColor="#22c55e" />
         <StatCard label="Throughput" value="1.2k" accentColor="#38bdf8" />
       </div>
 
@@ -104,7 +108,7 @@ export default function OverviewPage({ alerts, devices }: OverviewPageProps) {
               <div
                 className="donut-chart"
                 style={{
-                  background: `conic-gradient(#22c55e 0deg ${(healthyCount / Math.max(devices.length, 1)) * 360}deg, #f97316 ${(healthyCount / Math.max(devices.length, 1)) * 360}deg ${((healthyCount + warningCount) / Math.max(devices.length, 1)) * 360}deg, #ef4444 ${((healthyCount + warningCount) / Math.max(devices.length, 1)) * 360}deg 360deg)`,
+                  background: `conic-gradient(#22c55e 0deg ${donutHealthyDeg}deg, #f97316 ${donutHealthyDeg}deg ${donutHealthyDeg + donutWarningDeg}deg, #ef4444 ${donutHealthyDeg + donutWarningDeg}deg 360deg)`,
                 }}
               />
               <div style={{ fontSize: 10 }}>
@@ -112,10 +116,10 @@ export default function OverviewPage({ alerts, devices }: OverviewPageProps) {
                   <SeverityDot severity="healthy" /> Healthy: <strong>{healthyCount}</strong>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <SeverityDot severity="warning" /> Warning: <strong>{warningCount}</strong>
+                  <SeverityDot severity="warning" /> Warning: <strong>{warningDevices}</strong>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <SeverityDot severity="critical" /> Critical: <strong>{criticalCount}</strong>
+                  <SeverityDot severity="critical" /> Critical: <strong>{criticalDevices}</strong>
                 </div>
               </div>
             </div>
