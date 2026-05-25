@@ -67,14 +67,16 @@ export default function TimeSeriesChart({
           type: s.lineStyle === 'dashed' ? 'dashed' as const : 'solid' as const,
         },
       })),
-      ...(anomalyPoints?.map(p => ({
-        type: 'scatter' as const,
-        name: 'anomaly',
-        data: [[p.time, p.value]],
-        symbolSize: 8,
-        itemStyle: { color: '#ef4444', borderColor: '#0f172a', borderWidth: 2 },
-        showInLegend: false,
-      })) || []),
+      ...(anomalyPoints && anomalyPoints.length > 0
+        ? [{
+            type: 'scatter' as const,
+            name: 'anomaly',
+            data: anomalyPoints.map(p => [p.time, p.value]),
+            symbolSize: 8,
+            itemStyle: { color: '#ef4444', borderColor: '#0f172a', borderWidth: 2 },
+            showInLegend: false,
+          }]
+        : []),
     ],
   }
 
