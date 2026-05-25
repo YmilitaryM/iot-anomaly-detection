@@ -1,4 +1,3 @@
-import time
 import logging
 from datetime import datetime
 from src.models.anomaly import AnomalyEvent, Severity

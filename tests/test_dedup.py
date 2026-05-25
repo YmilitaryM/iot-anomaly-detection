@@ -51,6 +51,14 @@ class TestAlertDeduplicator:
                              severity=Severity.CRITICAL)
         assert not dedup.is_duplicate(e2)
 
+    def test_lower_severity_within_cooldown_is_duplicate(self, dedup):
+        t = datetime.now()
+        e1 = self.make_event(timestamp=t, severity=Severity.CRITICAL)
+        dedup.record(e1)
+        e2 = self.make_event(timestamp=t + timedelta(seconds=60),
+                             severity=Severity.WARNING)
+        assert dedup.is_duplicate(e2)
+
     def test_record_updates_last_seen(self, dedup):
         t = datetime.now()
         e1 = self.make_event(timestamp=t)
