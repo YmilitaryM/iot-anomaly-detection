@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime
 from src.models.anomaly import AnomalyEvent, Severity
 
 logger = logging.getLogger(__name__)

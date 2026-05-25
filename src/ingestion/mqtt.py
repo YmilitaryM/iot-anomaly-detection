@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -28,7 +29,6 @@ class MQTTIngestor:
                         await self._handle_message(message)
             except aiomqtt.MqttError:
                 logger.exception("MQTT connection lost, reconnecting in 5s...")
-                import asyncio
                 await asyncio.sleep(5)
 
     async def stop(self) -> None:

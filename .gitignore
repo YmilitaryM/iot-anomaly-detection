@@ -8,3 +8,17 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Test artifacts
+.pytest_cache/
+
+# Model files
+*.onnx
+
+# Sensitive config
+.env
+
+# Dev tooling
+.claude/
+.remember/
+.superpowers/

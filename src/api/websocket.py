@@ -26,7 +26,8 @@ class AlertBroadcaster:
             except Exception:
                 stale.append(ws)
         for ws in stale:
-            self._connections.remove(ws)
+            if ws in self._connections:
+                self._connections.remove(ws)
 
 
 broadcaster = AlertBroadcaster()

@@ -1,7 +1,6 @@
 import asyncio
 import json
 import random
-import time
 from datetime import datetime, timezone
 import aiomqtt
 

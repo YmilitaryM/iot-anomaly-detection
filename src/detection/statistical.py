@@ -60,7 +60,7 @@ class StatisticalDetector(Detector):
         return AnomalyEvent(
             device_id=data.device_id,
             sensor_id=data.sensor_id,
-            sensor_type=data.sensor_type.value,
+            sensor_type=data.sensor_type,
             timestamp=data.timestamp,
             anomaly_score=round(sigma_score, 4),
             severity=severity,
