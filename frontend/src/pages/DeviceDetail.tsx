@@ -4,7 +4,7 @@ import TimeSeriesChart from '../components/TimeSeriesChart'
 import StatusBadge from '../components/StatusBadge'
 import EmptyState from '../components/EmptyState'
 import { useChartData } from '../hooks/useChartData'
-import { SENSOR_COLORS } from '../components/TimeSeriesChart'
+
 
 // Mock sensor list for display
 const MOCK_SENSORS = [

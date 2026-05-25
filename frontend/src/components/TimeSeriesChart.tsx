@@ -47,13 +47,12 @@ export default function TimeSeriesChart({
       ...(anomalyWindows?.map((w, i) => ({
         type: 'line' as const,
         name: `anomaly-${i}`,
-        data: [],
+        data: [] as [string, number][],
         markArea: {
           silent: true,
           itemStyle: { color: 'rgba(239,68,68,0.06)' },
           data: [[{ xAxis: w.start }, { xAxis: w.end }]],
         },
-        showInLegend: false,
       })) || []),
       ...series.map(s => ({
         type: 'line' as const,
@@ -74,10 +73,9 @@ export default function TimeSeriesChart({
             data: anomalyPoints.map(p => [p.time, p.value]),
             symbolSize: 8,
             itemStyle: { color: '#ef4444', borderColor: '#0f172a', borderWidth: 2 },
-            showInLegend: false,
           }]
         : []),
-    ],
+    ] as any,
   }
 
   return (

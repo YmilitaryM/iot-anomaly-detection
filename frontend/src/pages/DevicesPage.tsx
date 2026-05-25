@@ -9,7 +9,7 @@ import { usePolling } from '../hooks/usePolling'
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([])
   const [search, setSearch] = useState('')
-  const [typeFilter, setTypeFilter] = useState('all')
+
   const navigate = useNavigate()
 
   const loadDevices = () => {

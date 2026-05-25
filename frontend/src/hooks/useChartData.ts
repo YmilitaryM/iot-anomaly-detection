@@ -4,7 +4,7 @@ import { fetchSensorHistory, type SensorData } from '../api'
 export function useChartData(deviceId: string, sensorId: string, lookbackMs: number = 3600000) {
   const [data, setData] = useState<SensorData[]>([])
   const [loading, setLoading] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setInterval>>()
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined)
 
   useEffect(() => {
     if (!deviceId || !sensorId) {
