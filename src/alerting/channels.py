@@ -1,5 +1,6 @@
 import logging
 from abc import ABC, abstractmethod
+import httpx
 from src.models.anomaly import AnomalyEvent
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,6 @@ class DingTalkChannel(AlertChannel):
         self.webhook_url = webhook_url
 
     async def send(self, event: AnomalyEvent) -> bool:
-        import httpx
         if not self.webhook_url:
             return False
         try:
@@ -57,7 +57,6 @@ class FeishuChannel(AlertChannel):
         self.webhook_url = webhook_url
 
     async def send(self, event: AnomalyEvent) -> bool:
-        import httpx
         if not self.webhook_url:
             return False
         try:

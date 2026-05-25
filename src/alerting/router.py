@@ -24,6 +24,9 @@ class AlertRouter:
             return False
         self.dedup.record(event)
         channels = self._channels.get(event.severity, [])
+        if not channels:
+            logger.warning("no channels configured for severity %s, event dropped: %s/%s",
+                           event.severity.value, event.device_id, event.sensor_id)
         results = []
         for ch in channels:
             try:
