@@ -14,6 +14,7 @@
   /* Accent */
   --color-accent: #38bdf8;
   --color-accent-bg: #1e3a5f;
+  --color-accent-hover: rgba(56, 189, 248, 0.2);
 
   /* Severity */
   --color-critical: #ef4444;

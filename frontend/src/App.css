@@ -526,7 +526,7 @@
 }
 
 .btn-primary:hover {
-  background: rgba(56,189,248,0.2);
+  background: var(--color-accent-hover);
 }
 
 /* Progress bar */
